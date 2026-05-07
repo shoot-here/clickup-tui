@@ -904,11 +904,14 @@ fn render_dashboard(f: &mut Frame, area: Rect, app: &App) {
 }
 
 fn render_settings(f: &mut Frame, area: Rect, app: &mut App) {
-    let modal = centered(60, 75, area);
+    let modal = centered(60, 80, area);
     f.render_widget(Clear, modal);
     let block = Block::default()
         .borders(Borders::ALL)
-        .title(" Settings — esc close ")
+        .title(format!(
+            " Settings — clickup-tui v{} — esc close ",
+            env!("CARGO_PKG_VERSION")
+        ))
         .border_style(Style::default().fg(Color::Cyan));
     let inner = block.inner(modal);
     f.render_widget(block, modal);
@@ -916,12 +919,13 @@ fn render_settings(f: &mut Frame, area: Rect, app: &mut App) {
     let bold = Style::default().add_modifier(Modifier::BOLD);
     let dim = Style::default().fg(Color::DarkGray);
 
-    // Split into help (top) + actions (bottom)
+    // Split into help (top) + actions (middle) + disclaimer (bottom)
     let layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Min(0),
             Constraint::Length(SETTINGS_ACTIONS.len() as u16 + 2),
+            Constraint::Length(2),
         ])
         .split(inner);
 
@@ -979,6 +983,19 @@ fn render_settings(f: &mut Frame, area: Rect, app: &mut App) {
         )
         .highlight_symbol("▸ ");
     f.render_stateful_widget(actions, layout[1], &mut app.settings_state);
+
+    // Disclaimer
+    let disclaimer = vec![
+        Line::from(Span::styled("Independent open-source project.", dim)),
+        Line::from(Span::styled(
+            "Not affiliated with or endorsed by ClickUp Inc.",
+            dim,
+        )),
+    ];
+    f.render_widget(
+        Paragraph::new(disclaimer).alignment(Alignment::Center),
+        layout[2],
+    );
 }
 
 const PIE_FALLBACK_COLORS: &[Color] = &[

@@ -2,6 +2,8 @@
 
 Yazi-style terminal client for ClickUp. Read, edit, comment, and visualize your workspace without leaving the terminal. Rust + ratatui.
 
+> _Independent open-source project. Not affiliated with, endorsed by, or sponsored by ClickUp Inc. ClickUp is a trademark of ClickUp Inc._
+
 ```
 ┌ Spaces ───┐ ┌ Folders ─────┐ ┌ Lists ────────┐ ┌ Tasks ──────────────┐ ┌ Detail ──────────┐
 │ ▸ Work    │ │ ▸ Sprint 4   │ │ ▸ In Progress │ │ ● Implement search   │ │ Title            │

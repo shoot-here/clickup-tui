@@ -103,7 +103,8 @@ fn render(f: &mut Frame, state: &WelcomeState) {
             Constraint::Length(1), // hint
             Constraint::Length(1), // error (always reserved)
             Constraint::Min(0),
-            Constraint::Length(1), // footer
+            Constraint::Length(1), // key footer
+            Constraint::Length(1), // disclaimer
         ])
         .split(area);
 
@@ -182,6 +183,19 @@ fn render(f: &mut Frame, state: &WelcomeState) {
         )))
         .alignment(Alignment::Center),
         chunks[8],
+    );
+
+    // disclaimer
+    f.render_widget(
+        Paragraph::new(Line::from(Span::styled(
+            format!(
+                "clickup-tui v{} · independent open-source project · not affiliated with ClickUp Inc.",
+                env!("CARGO_PKG_VERSION"),
+            ),
+            Style::default().fg(Color::DarkGray),
+        )))
+        .alignment(Alignment::Center),
+        chunks[9],
     );
 
     if state.show_settings {
