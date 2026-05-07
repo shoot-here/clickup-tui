@@ -14,6 +14,9 @@ use tui_textarea::TextArea;
 /// limit is ~100 req/min; 6 concurrent keeps us well below that.
 const FETCH_CONCURRENCY: usize = 6;
 
+/// Actions in the settings overlay. Index aligns with `activate_settings`.
+pub const SETTINGS_ACTIONS: &[&str] = &["Change API key", "Quit"];
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Pane {
     Spaces,
@@ -45,6 +48,7 @@ pub enum Mode {
     StatusPicker,
     PriorityPicker,
     Dashboard,
+    Settings,
     Search,
     FilterOverlay,
     AssigneePicker,
@@ -193,6 +197,10 @@ pub struct App {
     pub due_date_error: Option<String>,
     pub status: String,
     pub should_quit: bool,
+    /// When true alongside `should_quit`, main loop re-runs the welcome flow
+    /// instead of exiting — used by the "Change API key" settings action.
+    pub should_reauth: bool,
+    pub settings_state: ListState,
 }
 
 impl App {
@@ -264,6 +272,12 @@ impl App {
             due_date_error: None,
             status: "loading workspaces…".into(),
             should_quit: false,
+            should_reauth: false,
+            settings_state: {
+                let mut s = ListState::default();
+                s.select(Some(0));
+                s
+            },
         }
     }
 
@@ -418,6 +432,7 @@ impl App {
             Mode::StatusPicker => self.key_status_picker(key),
             Mode::PriorityPicker => self.key_priority_picker(key),
             Mode::Dashboard => self.key_dashboard(key),
+            Mode::Settings => self.key_settings(key),
             Mode::Search => self.key_search(key),
             Mode::FilterOverlay => self.key_filter_overlay(key),
             Mode::AssigneePicker => self.key_assignee_picker(key),
@@ -450,6 +465,7 @@ impl App {
 
         match key.code {
             KeyCode::Char('q') => self.should_quit = true,
+            KeyCode::Esc => self.enter_settings(),
             KeyCode::Char('h') | KeyCode::Left | KeyCode::BackTab => self.focus_prev(),
             KeyCode::Char('l') | KeyCode::Right | KeyCode::Tab => self.focus_next(),
             KeyCode::Enter => {
@@ -1129,6 +1145,48 @@ impl App {
 
     pub fn total_open_tasks(&self) -> usize {
         self.tasks_cache.values().map(|v| v.len()).sum()
+    }
+
+    // ── Settings ──────────────────────────────────────────────────────
+
+    fn enter_settings(&mut self) {
+        self.settings_state.select(Some(0));
+        self.mode = Mode::Settings;
+    }
+
+    fn key_settings(&mut self, key: KeyEvent) {
+        match key.code {
+            KeyCode::Esc | KeyCode::Char('q') => self.mode = Mode::Normal,
+            KeyCode::Char('j') | KeyCode::Down => self.move_settings(1),
+            KeyCode::Char('k') | KeyCode::Up => self.move_settings(-1),
+            KeyCode::Enter | KeyCode::Char(' ') => self.activate_settings(),
+            _ => {}
+        }
+    }
+
+    fn move_settings(&mut self, delta: isize) {
+        let len = SETTINGS_ACTIONS.len() as isize;
+        let cur = self.settings_state.selected().unwrap_or(0) as isize;
+        let next = (cur + delta).rem_euclid(len) as usize;
+        self.settings_state.select(Some(next));
+    }
+
+    fn activate_settings(&mut self) {
+        match self.settings_state.selected().unwrap_or(0) {
+            0 => {
+                // Change API key — wipe config and signal main loop to re-run welcome.
+                if let Err(e) = crate::config::Config::delete() {
+                    self.status = format!("delete config: {e}");
+                    return;
+                }
+                self.should_quit = true;
+                self.should_reauth = true;
+            }
+            1 => {
+                self.should_quit = true;
+            }
+            _ => self.mode = Mode::Normal,
+        }
     }
 
     pub fn task_counts_by_assignee(&self) -> Vec<(String, u64)> {

@@ -46,6 +46,17 @@ impl Config {
         Ok(config)
     }
 
+    /// Remove the config file if it exists. Used by "Change API key" to wipe
+    /// credentials before re-running the welcome flow.
+    pub fn delete() -> Result<()> {
+        let path = config_path()?;
+        if path.exists() {
+            fs::remove_file(&path)
+                .with_context(|| format!("remove {}", path.display()))?;
+        }
+        Ok(())
+    }
+
     /// Write the config file with `chmod 600` on Unix. Creates parent dirs.
     pub fn save_token(token: &str) -> Result<()> {
         let path = config_path()?;

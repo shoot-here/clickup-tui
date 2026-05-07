@@ -45,27 +45,35 @@ async fn main() -> Result<()> {
 }
 
 async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>) -> Result<()> {
-    let config = match Config::load() {
-        Ok(c) => c,
-        Err(LoadError::Invalid(e)) => return Err(e),
-        Err(LoadError::Missing) => {
-            match welcome::run(terminal).await? {
+    loop {
+        let config = match Config::load() {
+            Ok(c) => c,
+            Err(LoadError::Invalid(e)) => return Err(e),
+            Err(LoadError::Missing) => match welcome::run(terminal).await? {
                 welcome::WelcomeOutcome::Quit => return Ok(()),
                 welcome::WelcomeOutcome::Token(token) => {
                     Config::save_token(&token)?;
                     Config { api_token: token }
                 }
-            }
+            },
+        };
+        let client = api::Client::new(config.api_token);
+        match run_main(terminal, client).await? {
+            ExitReason::Quit => return Ok(()),
+            ExitReason::Reauth => continue,
         }
-    };
-    let client = api::Client::new(config.api_token);
-    run_main(terminal, client).await
+    }
+}
+
+enum ExitReason {
+    Quit,
+    Reauth,
 }
 
 async fn run_main<B: ratatui::backend::Backend>(
     terminal: &mut Terminal<B>,
     client: api::Client,
-) -> Result<()> {
+) -> Result<ExitReason> {
     let (tx, mut rx) = mpsc::unbounded_channel();
     let mut app = App::new(client, tx);
     app.bootstrap();
@@ -90,5 +98,5 @@ async fn run_main<B: ratatui::backend::Backend>(
             }
         }
     }
-    Ok(())
+    Ok(if app.should_reauth { ExitReason::Reauth } else { ExitReason::Quit })
 }

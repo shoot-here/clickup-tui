@@ -1,5 +1,5 @@
 use crate::api::{CustomField, TaskPriority, TaskStatus, PRIORITY_OPTIONS};
-use crate::app::{App, Mode, Pane};
+use crate::app::{App, Mode, Pane, SETTINGS_ACTIONS};
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
@@ -35,6 +35,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
         Mode::StatusPicker => render_status_picker(f, area, app),
         Mode::PriorityPicker => render_priority_picker(f, area, app),
         Mode::Dashboard => render_dashboard(f, area, app),
+        Mode::Settings => render_settings(f, area, app),
         Mode::Search => render_search_overlay(f, area, app),
         Mode::FilterOverlay => render_filter_overlay(f, area, app),
         Mode::AssigneePicker => render_assignee_picker(f, area, app),
@@ -900,6 +901,84 @@ fn render_dashboard(f: &mut Frame, area: Rect, app: &App) {
 
     // Right: tasks by status — pie chart + legend
     render_status_pie(f, cols[1], app);
+}
+
+fn render_settings(f: &mut Frame, area: Rect, app: &mut App) {
+    let modal = centered(60, 75, area);
+    f.render_widget(Clear, modal);
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(" Settings — esc close ")
+        .border_style(Style::default().fg(Color::Cyan));
+    let inner = block.inner(modal);
+    f.render_widget(block, modal);
+
+    let bold = Style::default().add_modifier(Modifier::BOLD);
+    let dim = Style::default().fg(Color::DarkGray);
+
+    // Split into help (top) + actions (bottom)
+    let layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Min(0),
+            Constraint::Length(SETTINGS_ACTIONS.len() as u16 + 2),
+        ])
+        .split(inner);
+
+    let help_lines = vec![
+        Line::from(Span::styled("Navigation", bold)),
+        Line::from("  h ← / l → / Tab    move between panes"),
+        Line::from("  j ↓ / k ↑          move within pane"),
+        Line::from("  /                  global search"),
+        Line::from("  f                  filter overlay"),
+        Line::from("  ↑ from top row     dashboard callout"),
+        Line::raw(""),
+        Line::from(Span::styled("Editing", bold)),
+        Line::from("  t  title          e  description"),
+        Line::from("  s  status         p  priority"),
+        Line::from("  d  due date       a  assignees"),
+        Line::from("  c  comment        n  new task"),
+        Line::from("  r  refresh"),
+        Line::raw(""),
+        Line::from(Span::styled("Modal save", bold)),
+        Line::from("  ⌃⏎ / ⌥⏎ / F2     save & exit modal"),
+        Line::from("  esc               cancel"),
+        Line::raw(""),
+        Line::from(Span::styled("Config", bold)),
+        Line::from(Span::styled(
+            "  ~/.config/clickup-tui/config.toml",
+            dim,
+        )),
+    ];
+    f.render_widget(Paragraph::new(help_lines), layout[0]);
+
+    // Actions list (interactive)
+    let items: Vec<ListItem> = SETTINGS_ACTIONS
+        .iter()
+        .enumerate()
+        .map(|(i, label)| {
+            let prefix = if i == 0 { "↻ " } else { "✕ " };
+            let color = if i == 0 { Color::Yellow } else { Color::Red };
+            ListItem::new(Line::from(vec![
+                Span::styled(prefix, Style::default().fg(color)),
+                Span::raw(*label),
+            ]))
+        })
+        .collect();
+    let actions = List::new(items)
+        .block(
+            Block::default()
+                .borders(Borders::TOP)
+                .border_style(Style::default().fg(Color::DarkGray)),
+        )
+        .highlight_style(
+            Style::default()
+                .bg(Color::Cyan)
+                .fg(Color::Black)
+                .add_modifier(Modifier::BOLD),
+        )
+        .highlight_symbol("▸ ");
+    f.render_stateful_widget(actions, layout[1], &mut app.settings_state);
 }
 
 const PIE_FALLBACK_COLORS: &[Color] = &[
