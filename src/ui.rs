@@ -121,8 +121,7 @@ fn progress_bar(done: usize, total: usize, width: usize) -> String {
 }
 
 fn render_help(f: &mut Frame, area: Rect) {
-    let help =
-        " h/l/⇥ panes  j/k items  / search  f filter  n new  t title  e desc  s status  p priority  d due  a assignees  c comment  r refresh  q quit ";
+    let help = " ↑ ↓ ← →  navigate    ⏎  select    esc  menu / shortcuts    q  quit ";
     f.render_widget(
         Paragraph::new(help).style(Style::default().fg(Color::DarkGray)),
         area,
